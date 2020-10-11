@@ -168,7 +168,8 @@ async def start(ctx):
             await reaction.delete()
 
     # voting results
-    await game_channel.send("Voting results:")
+    embed = discord.Embed(title="Voting results:", color=discord.Colour.from_rgb(255, 255, 255))
+    await game_channel.send(embed=embed)
     vote_numbers = {}
     for i in votes.keys():
         temp_str = ', '.join(votes[i])
@@ -179,6 +180,7 @@ async def start(ctx):
             await game_channel.send(f"Skipped: {temp_str}")
             vote_numbers["Skip"] = len(votes[i])
 
+    time.sleep(1)
     # get highest number of votes
     max_votes = None
     voted_player = None
@@ -195,18 +197,27 @@ async def start(ctx):
     # announce ejection
     if not tie:
         if voted_player != "Skip":
-            await game_channel.send(f"{voted_player.mention} got ejected.")
+            embed = discord.Embed(title=f"{voted_player.name} got ejected", color=voted_player.colour)
+            embed.set_image(url="https://i.imgur.com/pJFsIgc.png")
+            await game_channel.send(embed=embed)
 
             if voted_player in crewmates:
                 time.sleep(1)
-                await game_channel.send(f"{voted_player.mention} was not The Impostor \n"
-                                        f"{len(impostors)} Impostor/s remain")
+
+                embed = discord.Embed(title=f"{voted_player.name} was not The Impostor",
+                                      color=discord.Colour.from_rgb(102, 204, 255))
+                embed.add_field(name=f"{len(impostors)} Impostor/s remain", value=f"{voted_player.mention}")
+                await game_channel.send(embed=embed)
                 crewmates.remove(voted_player)
+
             elif voted_player in impostors:
                 impostors.remove(voted_player)
                 time.sleep(1)
-                await game_channel.send(f"{voted_player.mention} was The Impostor \n"
-                                        f"{len(impostors)} Impostor/s remain")
+
+                embed = discord.Embed(title=f"{voted_player.name} was The Impostor",
+                                      color=discord.Colour.dark_red())
+                embed.add_field(name=f"{len(impostors)} Impostor/s remain", value=f"{voted_player.mention}")
+                await game_channel.send(embed=embed)
         else:
             await game_channel.send("Skipped! No one got ejected.")
     else:
@@ -239,6 +250,10 @@ async def start(ctx):
     # embed = discord.Embed(title="You are a crewmate! (2 impostors)", color=discord.Colour.from_rgb(102, 204, 255))
     # embed.set_image(url="https://i.imgur.com/nR3N4Py.png")
     # await ctx.channel.send(embed=embed)
+    #
+    # embed = discord.Embed(title=f"{voted_player.mention} got ejected", color=voted_player.colour)
+    # embed.set_image(url="https://i.imgur.com/pJFsIgc.png")
+    # await game_channel.send(embed=embed)
 
 
 client.add_command(start)
