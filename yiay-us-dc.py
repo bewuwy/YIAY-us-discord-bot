@@ -18,7 +18,7 @@ async def on_ready():
 @commands.command()
 async def start(ctx):
 
-    # checking some things
+    # checking some things TODO: message that a game is in progress
     user = ctx.author
     guild = ctx.guild
     channel = ctx.channel
@@ -40,6 +40,9 @@ async def start(ctx):
         return
 
     players = vc.members
+    for i in players:
+        if i.bot:
+            players.remove(i)
 
     if len(players) < 2:
         embed = discord.Embed(title="Error", color=discord.Colour.red())
@@ -74,26 +77,28 @@ async def start(ctx):
     c_q = questions["crewmate"][n]
     i_q = questions["impostor"][n]
 
-    # announcing roles TODO: make it pretty with embed messages with images
+    # announcing roles
     for i in crewmates:
         m = guild.get_member(i.id)
-
         if m.dm_channel is None:
             await m.create_dm()
 
-        await m.dm_channel.send("You are a Crewmate!")
+        embed = discord.Embed(title="You are a crewmate!", color=discord.Colour.from_rgb(102, 204, 255))
+        embed.set_image(url="https://i.imgur.com/U6tNEaM.png")
+        await m.dm_channel.send(embed=embed)
         await m.dm_channel.send(c_q)
 
     for i in impostors:
         m = guild.get_member(i.id)
-
         if m.dm_channel is None:
             await m.create_dm()
 
-        await m.dm_channel.send("You are The Impostor!")
+        embed = discord.Embed(title="You are the Impostor!", color=discord.Colour.dark_red())
+        embed.set_image(url="https://i.imgur.com/Io4VgUu.png")
+        await m.dm_channel.send(embed=embed)
         await m.dm_channel.send(i_q)
 
-    # creating the game channel
+    # creating the game channel TODO: change it from being random or make a check to avoid (very rare) errors
     chan_name = f"yiay-us-{random.randint(1000, 9999)}"
     game_role = await guild.create_role(name=chan_name)  # TODO: change it to specific users rather than a role
     print(f"Starting {chan_name} game")
@@ -108,7 +113,9 @@ async def start(ctx):
     for i in players:
         await i.add_roles(game_role)
 
+    time.sleep(10)
     # answering phase TODO: maybe change it to dms so you cant change your mind based on other answers
+    # TODO: add something to handle timeout errors
     messages = []
     for i in players:
         temp_msg = await game_channel.send(f"{i.mention} it's your turn! You have 60 seconds to answer.")
@@ -121,7 +128,13 @@ async def start(ctx):
         await temp_msg.delete()
 
     # voting phase TODO: say who is voted out and overwrite so dead people can't talk
-    await game_channel.send(f"The question was: {c_q}")
+    skip_msg = await game_channel.send("Skip vote")
+
+    embed = discord.Embed(title="Question", color=discord.Colour.green())
+    embed.add_field(name="The question was:",
+                    value=c_q)
+    await game_channel.send(embed=embed)
+
     vote_announce = await game_channel.send(f"Voting starts in 20 seconds {game_role.mention}")
     time.sleep(20)
     await vote_announce.delete()
@@ -129,7 +142,6 @@ async def start(ctx):
     not_voted = list(players)
     votes = {}
 
-    skip_msg = await game_channel.send("Skip vote")
     messages.append(skip_msg)
     for i in messages:
         await i.add_reaction("✅")
@@ -145,9 +157,9 @@ async def start(ctx):
             not_voted.remove(user)
 
             if reaction.message.author in votes.keys():
-                votes[reaction.message.author] += 1
+                votes[reaction.message.author].append(user.mention)
             else:
-                votes[reaction.message.author] = 1
+                votes[reaction.message.author] = [user.mention]
 
             await game_channel.send(f"{user.mention} has voted!")
             await reaction.remove(user)
@@ -155,16 +167,17 @@ async def start(ctx):
         else:
             await reaction.delete()
 
-    # voting results TODO: add list who voted for what
+    # voting results
     await game_channel.send("Voting results:")
     for i in votes.keys():
+        temp_str = ', '.join(votes[i])
         if i != client.user:
-            await game_channel.send(f"{i.mention} got {votes[i]} votes")
+            await game_channel.send(f"{i.mention}: {temp_str}")
         else:
-            await game_channel.send(f"Skipped: {votes[i]}")
+            await game_channel.send(f"Skipped: {temp_str}")
 
     # TODO: make game longer than one round
-    time.sleep(30)
+    time.sleep(15)
     # cleaning after the end of the game
     print(f"Cleaning {chan_name} game")
     await guild.change_voice_state(channel=None)
@@ -172,7 +185,24 @@ async def start(ctx):
         await i.remove_roles(game_role)
     await game_role.delete()
 
-    # await game_channel.delete() TODO: make it so you need to confirm to delete the channel
+    await game_channel.delete()  # TODO: make it so you need to confirm to delete the channel
+
+    # Embed Messages:
+    # embed = discord.Embed(title="You are the Impostor!", color=discord.Colour.dark_red())
+    # embed.set_image(url="https://i.imgur.com/Io4VgUu.png")
+    # await ctx.channel.send(embed=embed)
+    #
+    # embed = discord.Embed(title="You are the Impostor! (with {})", color=discord.Colour.dark_red())
+    # embed.set_image(url="https://i.imgur.com/hIJQdKj.png")
+    # await ctx.channel.send(embed=embed)
+    #
+    # embed = discord.Embed(title="You are a crewmate! (1 impostor)", color=discord.Colour.from_rgb(102, 204, 255))
+    # embed.set_image(url="https://i.imgur.com/U6tNEaM.png")
+    # await ctx.channel.send(embed=embed)
+    #
+    # embed = discord.Embed(title="You are a crewmate! (2 impostors)", color=discord.Colour.from_rgb(102, 204, 255))
+    # embed.set_image(url="https://i.imgur.com/nR3N4Py.png")
+    # await ctx.channel.send(embed=embed)
 
 
 client.add_command(start)
