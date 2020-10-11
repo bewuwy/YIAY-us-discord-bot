@@ -127,7 +127,7 @@ async def start(ctx):
         messages.append(message)
         await temp_msg.delete()
 
-    # voting phase TODO: say who is voted out and overwrite so dead people can't talk
+    # voting phase TODO: overwrite so dead people can't talk
     skip_msg = await game_channel.send("Skip vote")
 
     embed = discord.Embed(title="Question", color=discord.Colour.green())
@@ -169,12 +169,48 @@ async def start(ctx):
 
     # voting results
     await game_channel.send("Voting results:")
+    vote_numbers = {}
     for i in votes.keys():
         temp_str = ', '.join(votes[i])
         if i != client.user:
+            vote_numbers[i] = len(votes[i])
             await game_channel.send(f"{i.mention}: {temp_str}")
         else:
             await game_channel.send(f"Skipped: {temp_str}")
+            vote_numbers["Skip"] = len(votes[i])
+
+    # get highest number of votes
+    max_votes = None
+    voted_player = None
+    tie = False
+    for i in vote_numbers.keys():
+        if max_votes is None or vote_numbers[i] > max_votes:
+            max_votes = vote_numbers[i]
+            voted_player = i
+            tie = False
+        elif vote_numbers[i] == max_votes:
+            voted_player = None
+            tie = True
+
+    # announce ejection
+    if not tie:
+        if voted_player != "Skip":
+            await game_channel.send(f"{voted_player.mention} got ejected.")
+
+            if voted_player in crewmates:
+                time.sleep(1)
+                await game_channel.send(f"{voted_player.mention} was not The Impostor \n"
+                                        f"{len(impostors)} Impostor/s remain")
+                crewmates.remove(voted_player)
+            elif voted_player in impostors:
+                impostors.remove(voted_player)
+                time.sleep(1)
+                await game_channel.send(f"{voted_player.mention} was The Impostor \n"
+                                        f"{len(impostors)} Impostor/s remain")
+        else:
+            await game_channel.send("Skipped! No one got ejected.")
+    else:
+        await game_channel.send("Tie! No one got ejected.")
 
     # TODO: make game longer than one round
     time.sleep(15)
